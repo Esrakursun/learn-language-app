@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sayfa · Kitap Okuma ve Kelime Öğrenme</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Literata:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  :root{
+    --ink:#1B2431;
+    --ink-soft:#3A4457;
+    --paper:#F3ECDD;
+    --paper-dark:#E7DBC0;
+    --paper-line:#D8C9A3;
+    --brass:#B8892B;
+    --brass-dark:#8E6A1F;
+    --teal:#2F6F6B;
+    --teal-dark:#22514D;
+    --cream:#F6F1E3;
+    --danger:#A64B42;
+    --shadow: 0 8px 24px rgba(27,36,49,0.18);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;height:100%;}
+  body{
+    font-family:'Inter',sans-serif;
+    background:var(--ink);
+    color:var(--cream);
+    -webkit-font-smoothing:antialiased;
+  }
+  #app{display:flex;flex-direction:column;height:100vh;}
+
+  /* ---- Top bar ---- */
+  header.topbar{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:14px 20px;
+    background:linear-gradient(180deg,#212C3B,#1B2431);
+    border-bottom:1px solid rgba(184,137,43,0.35);
+    flex-shrink:0;
+  }
+  .brand{
+    font-family:'Fraunces',serif;font-weight:600;font-size:20px;letter-spacing:0.3px;
+    display:flex;align-items:center;gap:8px;
+  }
+  .brand .mark{color:var(--brass);font-size:22px;}
+  nav.tabs{display:flex;gap:4px;background:rgba(0,0,0,0.2);border-radius:10px;padding:4px;}
+  nav.tabs button{
+    background:transparent;border:none;color:#C9CFDB;font-family:'Inter';font-weight:600;font-size:13px;
+    padding:8px 14px;border-radius:8px;cursor:pointer;transition:.15s;
+  }
+  nav.tabs button.active{background:var(--brass);color:#1B2431;}
+  nav.tabs button:hover:not(.active){color:#fff;}
+
+  main{flex:1;overflow:auto;position:relative;}
+
+  /* ---- Library ---- */
+  .library-wrap{padding:28px 24px 60px;max-width:1000px;margin:0 auto;}
+  .library-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;flex-wrap:wrap;gap:12px;}
+  .library-head h1{font-family:'Fraunces',serif;font-size:28px;margin:0;font-weight:600;color:var(--cream);}
+  .library-head p{margin:4px 0 0;color:#9AA5B8;font-size:13.5px;}
+  .upload-btn{
+    background:var(--brass);color:#1B2431;border:none;padding:11px 18px;border-radius:10px;
+    font-weight:700;font-size:14px;cursor:pointer;display:flex;align-items:center;gap:8px;
+    box-shadow:var(--shadow);
+  }
+  .upload-btn:hover{background:#C79A3E;}
+  input[type=file]{display:none;}
+  .shelf{
+    display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:18px;
+  }
+  .book-card{
+    background:var(--paper);border-radius:8px 8px 4px 4px;padding:0;cursor:pointer;
+    box-shadow:var(--shadow);transition:.15s transform;position:relative;overflow:hidden;
+    border-left:6px solid var(--spine,#B8892B);
+  }
+  .book-card:hover{transform:translateY(-4px);}
+  .book-card .cover{
+    height:150px;display:flex;align-items:center;justify-content:center;
+    font-family:'Fraunces',serif;font-weight:700;font-size:34px;color:rgba(27,36,49,0.35);
+    background:repeating-linear-gradient(135deg, rgba(27,36,49,0.03) 0 10px, transparent 10px 20px);
+  }
+  .book-card .info{padding:10px 12px 14px;}
+  .book-card .title{font-family:'Fraunces',serif;font-weight:600;font-size:14.5px;color:#26313F;line-height:1.3;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+  .book-card .meta{font-size:11.5px;color:#6B7280;margin-top:5px;}
+  .book-card .del{
+    position:absolute;top:8px;right:8px;background:rgba(27,36,49,0.55);color:#fff;border:none;
+    width:24px;height:24px;border-radius:50%;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  }
+  .empty-state{
+    text-align:center;padding:70px 20px;color:#8B96A8;
+  }
+  .empty-state .icon{font-size:40px;margin-bottom:14px;}
+  .empty-state h3{font-family:'Fraunces',serif;color:var(--cream);font-size:20px;margin:0 0 8px;}
+
+  /* ---- Reader ---- */
+  .reader-wrap{display:flex;height:100%;}
+  .reader-pane{
+    flex:1;background:var(--paper);color:#2A2113;overflow-y:auto;position:relative;
+  }
+  .reader-topbar{
+    position:sticky;top:0;background:var(--paper);border-bottom:1px solid var(--paper-line);
+    padding:12px 26px;display:flex;align-items:center;justify-content:space-between;z-index:5;
+  }
+  .reader-topbar .back{background:none;border:none;color:var(--teal-dark);font-weight:700;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:6px;}
+  .reader-title{font-family:'Fraunces',serif;font-weight:600;font-size:15px;color:#2A2113;}
+  .reader-actions{display:flex;gap:8px;}
+  .icon-btn{
+    background:var(--paper-dark);border:1px solid var(--paper-line);color:#3A2E12;
+    padding:7px 12px;border-radius:8px;font-size:12.5px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;
+  }
+  .icon-btn:hover{background:#DFCFA6;}
+  .icon-btn.active{background:var(--teal);color:#fff;border-color:var(--teal);}
+  .page-text{
+    max-width:640px;margin:0 auto;padding:34px 26px 100px;
+    font-family:'Literata',serif;font-size:19px;line-height:1.85;
+  }
+  .sentence{position:relative;}
+  .word{cursor:pointer;border-radius:3px;padding:0 1px;transition:.1s;}
+  .word:hover{background:rgba(47,111,107,0.16);}
+  .word.saved{border-bottom:2px solid var(--brass);}
+  .word.active-word{background:var(--teal);color:#fff;}
+  .translate-flag{
+    display:inline-block;cursor:pointer;color:var(--teal-dark);font-size:12px;margin:0 2px;opacity:0.55;user-select:none;
+  }
+  .translate-flag:hover{opacity:1;}
+  .sentence-translation{
+    display:block;font-family:'Inter';font-size:14.5px;color:var(--teal-dark);background:#E4EFEE;
+    border-left:3px solid var(--teal);padding:6px 10px;margin:6px 0 10px;border-radius:0 6px 6px 0;
+  }
+  .pager{
+    position:sticky;bottom:0;background:var(--paper);border-top:1px solid var(--paper-line);
+    display:flex;align-items:center;justify-content:center;gap:16px;padding:12px;
+  }
+  .pager button{background:var(--ink);color:var(--cream);border:none;padding:8px 16px;border-radius:8px;font-weight:600;cursor:pointer;font-size:13px;}
+  .pager button:disabled{opacity:0.35;cursor:default;}
+  .pager span{font-size:13px;color:#5A4A26;font-weight:600;}
+
+  /* word card catalog panel */
+  .word-panel{
+    width:320px;flex-shrink:0;background:#FBF8F0;border-left:2px solid var(--paper-line);
+    box-shadow:-6px 0 18px rgba(0,0,0,0.15);transform:translateX(100%);transition:transform .28s ease;
+    position:relative;overflow-y:auto;
+  }
+  .word-panel.open{transform:translateX(0);}
+  .card-slip{
+    margin:22px 18px;background:#fff;border:1px solid #E4D9BC;border-radius:2px;
+    padding:20px 20px 22px;position:relative;
+    box-shadow:0 3px 10px rgba(0,0,0,0.08);
+  }
+  .card-slip::before{
+    content:"";position:absolute;top:0;left:16px;right:16px;height:2px;
+    background:repeating-linear-gradient(90deg, #D8C9A3 0 6px, transparent 6px 12px);
+  }
+  .panel-close{position:absolute;top:14px;right:16px;background:none;border:none;font-size:18px;color:#9A8A5F;cursor:pointer;}
+  .slip-word{font-family:'Fraunces',serif;font-size:22px;font-weight:700;color:#2A2113;margin:8px 0 2px;}
+  .slip-pos{font-size:12px;color:var(--brass-dark);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;}
+  .slip-meaning{font-size:16px;color:#2A2113;margin:10px 0 6px;font-weight:600;}
+  .slip-example{font-size:13.5px;color:#5A4E36;font-style:italic;margin-top:8px;line-height:1.5;}
+  .slip-loading{color:#9A8A5F;font-size:14px;padding:20px 0;text-align:center;}
+  .slip-actions{display:flex;gap:8px;margin-top:16px;}
+  .slip-btn{flex:1;border:none;border-radius:8px;padding:9px 0;font-weight:700;font-size:13px;cursor:pointer;}
+  .slip-btn.pronounce{background:var(--teal);color:#fff;}
+  .slip-btn.save{background:var(--brass);color:#1B2431;}
+  .slip-btn.saved{background:#DCE6D9;color:#3B5A38;}
+  .panel-empty{padding:40px 24px;text-align:center;color:#9A8A5F;font-size:13.5px;}
+
+  /* ---- Vocab / Flashcards ---- */
+  .vocab-wrap{padding:26px 24px 70px;max-width:900px;margin:0 auto;}
+  .vocab-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:10px;}
+  .vocab-head h1{font-family:'Fraunces',serif;font-size:26px;margin:0;font-weight:600;}
+  .mode-switch{display:flex;gap:6px;background:rgba(0,0,0,0.2);padding:4px;border-radius:10px;}
+  .mode-switch button{background:transparent;border:none;color:#C9CFDB;font-weight:600;font-size:12.5px;padding:7px 12px;border-radius:7px;cursor:pointer;}
+  .mode-switch button.active{background:var(--teal);color:#fff;}
+  .vocab-table{width:100%;border-collapse:collapse;margin-top:6px;}
+  .vocab-table th{text-align:left;font-size:11.5px;color:#8B96A8;text-transform:uppercase;letter-spacing:0.4px;padding:8px 10px;border-bottom:1px solid rgba(255,255,255,0.1);}
+  .vocab-table td{padding:11px 10px;border-bottom:1px solid rgba(255,255,255,0.06);font-size:14.5px;}
+  .vocab-table .w{font-family:'Fraunces',serif;font-weight:600;color:var(--cream);}
+  .vocab-table .fam{display:flex;gap:3px;}
+  .fam-dot{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,0.15);}
+  .fam-dot.on{background:var(--brass);}
+  .del-row{background:none;border:none;color:#8B96A8;cursor:pointer;font-size:14px;}
+  .del-row:hover{color:var(--danger);}
+
+  .flash-stage{display:flex;flex-direction:column;align-items:center;padding:30px 10px 60px;}
+  .flash-progress{color:#9AA5B8;font-size:13px;margin-bottom:18px;}
+  .flashcard{
+    width:100%;max-width:420px;min-height:220px;background:var(--paper);border-radius:14px;box-shadow:var(--shadow);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px;cursor:pointer;
+    text-align:center;position:relative;
+  }
+  .flashcard .tag{position:absolute;top:14px;left:16px;font-size:11px;color:var(--brass-dark);font-weight:700;text-transform:uppercase;}
+  .flashcard .front-text{font-family:'Fraunces',serif;font-size:26px;font-weight:700;color:#2A2113;}
+  .flashcard .back-text{font-family:'Inter';font-size:17px;color:var(--teal-dark);margin-top:14px;}
+  .flashcard .hint{color:#9A8A5F;font-size:12.5px;margin-top:16px;}
+  .flash-actions{display:flex;gap:12px;margin-top:22px;}
+  .flash-actions button{border:none;border-radius:10px;padding:11px 20px;font-weight:700;font-size:14px;cursor:pointer;}
+  .flash-actions .no{background:rgba(166,75,66,0.2);color:#E7A69F;}
+  .flash-actions .yes{background:rgba(76,138,90,0.25);color:#9FD3A9;}
+  .flash-done{text-align:center;color:#9AA5B8;padding:60px 20px;}
+  .flash-done h3{font-family:'Fraunces',serif;color:var(--cream);font-size:22px;}
+  .type-input{
+    margin-top:16px;padding:10px 14px;border-radius:8px;border:1px solid var(--paper-line);font-size:15px;
+    font-family:'Inter';width:80%;max-width:280px;text-align:center;
+  }
+
+  ::-webkit-scrollbar{width:9px;}
+  ::-webkit-scrollbar-thumb{background:rgba(184,137,43,0.4);border-radius:5px;}
+
+  @media (max-width:720px){
+    .reader-wrap{flex-direction:column;}
+    .word-panel{width:100%;position:fixed;bottom:0;left:0;right:0;top:auto;height:70vh;transform:translateY(100%);border-left:none;border-top:2px solid var(--paper-line);}
+    .word-panel.open{transform:translateY(0);}
+    nav.tabs button{padding:7px 10px;font-size:12px;}
+    .brand{font-size:16px;}
+    .page-text{font-size:17.5px;padding:24px 18px 90px;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="topbar">
+    <div class="brand"><span class="mark">◆</span>Sayfa</div>
+    <nav class="tabs" id="tabs">
+      <button data-tab="library" class="active">Kütüphane</button>
+      <button data-tab="vocab">Kelimelerim</button>
+    </nav>
+  </header>
+  <main id="main"></main>
+</div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+/* ---------------- Storage helpers ---------------- */
+async function storeGet(key, fallback){
+  try{
+    const r = await window.storage.get(key);
+    return r ? JSON.parse(r.value) : fallback;
+  }catch(e){ return fallback; }
+}
+async function storeSet(key, value){
+  try{ await window.storage.set(key, JSON.stringify(value)); }catch(e){ console.error("storage set failed", e); }
+}
+async function storeDelete(key){
+  try{ await window.storage.delete(key); }catch(e){}
+}
+
+/* ---------------- Global state ---------------- */
+let state = {
+  tab: 'library',
+  library: [],
+  vocab: [],
+  currentBook: null,   // {id, title, pages, currentPage}
+  panelOpen: false,
+  panelData: null,     // {word, sentence, loading, meaning, pos, example, saved}
+  vocabMode: 'list',   // list | flash-en-tr | flash-tr-en
+  flashDeck: [],
+  flashIndex: 0,
+  flashFlipped: false,
+  sessionWordCache: {}
+};
+
+const main = document.getElementById('main');
+
+/* ---------------- Claude API helper ---------------- */
+async function callClaude(system, userText){
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({
+      model: "claude-sonnet-4-6",
+      max_tokens: 1000,
+      system: system,
+      messages: [{role:"user", content:userText}]
+    })
+  });
+  const data = await res.json();
+  const text = (data.content || []).map(b => b.text || "").join("");
+  return text;
+}
+function parseJsonSafe(text){
+  const cleaned = text.replace(/```json|```/g,"").trim();
+  try{ return JSON.parse(cleaned); }catch(e){ return null; }
+}
+
+/* ---------------- Init ---------------- */
+async function init(){
+  state.library = await storeGet('library-index', []);
+  state.vocab = await storeGet('vocab-list', []);
+  render();
+}
+
+/* ---------------- Tab wiring ---------------- */
+document.getElementById('tabs').addEventListener('click', (e)=>{
+  const btn = e.target.closest('button[data-tab]');
+  if(!btn) return;
+  state.tab = btn.dataset.tab;
+  state.currentBook = null;
+  [...document.querySelectorAll('#tabs button')].forEach(b=>b.classList.toggle('active', b===btn));
+  render();
+});
+
+/* ---------------- Render router ---------------- */
+function render(){
+  if(state.currentBook){ renderReader(); return; }
+  if(state.tab === 'library'){ renderLibrary(); }
+  else{ renderVocab(); }
+}
+
+/* ================= LIBRARY ================= */
+function spineColor(title){
+  const colors = ['#B8892B','#2F6F6B','#A64B42','#5A6B8C','#7A5230','#4E7A5E'];
+  let h=0; for(const c of title) h += c.charCodeAt(0);
+  return colors[h % colors.length];
+}
+function renderLibrary(){
+  const books = state.library;
+  main.innerHTML = `
+    <div class="library-wrap">
+      <div class="library-head">
+        <div>
+          <h1>Kütüphanem</h1>
+          <p>${books.length ? books.length + ' kitap kayıtlı' : 'Henüz kitap eklenmedi'}</p>
+        </div>
+        <label class="upload-btn">
+          <input type="file" id="pdf-input" accept="application/pdf">
+          + PDF Kitap Yükle
+        </label>
+      </div>
+      <div id="upload-status"></div>
+      ${books.length ? `<div class="shelf">${books.map(b=>`
+        <div class="book-card" data-id="${b.id}" style="--spine:${spineColor(b.title)}">
+          <button class="del" data-del="${b.id}" title="Sil">✕</button>
+          <div class="cover">${b.title.slice(0,2).toUpperCase()}</div>
+          <div class="info">
+            <div class="title">${escapeHtml(b.title)}</div>
+            <div class="meta">${b.totalPages} sayfa</div>
+          </div>
+        </div>`).join('')}</div>`
+      : `<div class="empty-state">
+          <div class="icon">📖</div>
+          <h3>Kütüphanen boş</h3>
+          <p>Okumak istediğin İngilizce bir kitabın PDF'ini yükle, kaldığın yerden devam et.</p>
+        </div>`}
+    </div>
+  `;
+  document.getElementById('pdf-input').addEventListener('change', handlePdfUpload);
+  main.querySelectorAll('.book-card').forEach(card=>{
+    card.addEventListener('click', (e)=>{
+      if(e.target.closest('.del')) return;
+      openBook(card.dataset.id);
+    });
+  });
+  main.querySelectorAll('[data-del]').forEach(btn=>{
+    btn.addEventListener('click', async (e)=>{
+      e.stopPropagation();
+      const id = btn.dataset.del;
+      state.library = state.library.filter(b=>b.id!==id);
+      await storeSet('library-index', state.library);
+      await storeDelete('book-pages:'+id);
+      render();
+    });
+  });
+}
+
+function escapeHtml(s){
+  return s.replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+async function handlePdfUpload(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const statusEl = document.getElementById('upload-status');
+  statusEl.innerHTML = `<p style="color:#B8892B;margin:0 0 14px;">"${escapeHtml(file.name)}" işleniyor, sayfalar okunuyor…</p>`;
+  try{
+    const buf = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({data: buf}).promise;
+    const pages = [];
+    for(let i=1;i<=pdf.numPages;i++){
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      let text = content.items.map(it=>it.str).join(' ');
+      text = text.replace(/\s+/g,' ').trim();
+      if(text.length>0) pages.push(text);
+      statusEl.innerHTML = `<p style="color:#B8892B;margin:0 0 14px;">Sayfa ${i}/${pdf.numPages} işleniyor…</p>`;
+    }
+    const id = 'book_'+Date.now();
+    const title = file.name.replace(/\.pdf$/i,'');
+    const meta = {id, title, addedAt: Date.now(), totalPages: pages.length};
+    state.library.push(meta);
+    await storeSet('library-index', state.library);
+    await storeSet('book-pages:'+id, pages);
+    statusEl.innerHTML = '';
+    render();
+  }catch(err){
+    console.error(err);
+    statusEl.innerHTML = `<p style="color:#A64B42;">Kitap işlenemedi. Dosyanın metin içeren bir PDF olduğundan emin ol.</p>`;
+  }
+}
+
+/* ================= READER ================= */
+async function openBook(id){
+  const meta = state.library.find(b=>b.id===id);
+  if(!meta) return;
+  const pages = await storeGet('book-pages:'+id, []);
+  state.currentBook = {id, title: meta.title, pages, currentPage: 0};
+  state.panelOpen = false;
+  state.panelData = null;
+  render();
+}
+
+function splitSentences(text){
+  return text.match(/[^.!?]+[.!?]*/g) || [text];
+}
+function tokenize(sentence){
+  return sentence.match(/[A-Za-z']+|[^A-Za-z']+/g) || [];
+}
+
+function renderReader(){
+  const book = state.currentBook;
+  const pageText = book.pages[book.currentPage] || '';
+  const sentences = splitSentences(pageText);
+  const savedWords = new Set(state.vocab.map(v=>v.word.toLowerCase()));
+
+  const sentenceHtml = sentences.map((s, si)=>{
+    const tokens = tokenize(s);
+    const wordsHtml = tokens.map(t=>{
+      if(/[A-Za-z]/.test(t)){
+        const lower = t.toLowerCase();
+        const cls = savedWords.has(lower) ? 'word saved' : 'word';
+        return `<span class="${cls}" data-word="${escapeHtml(t)}" data-sentence="${si}">${escapeHtml(t)}</span>`;
+      }
+      return escapeHtml(t);
+    }).join('');
+    return `<span class="sentence" data-sidx="${si}">${wordsHtml}<span class="translate-flag" data-translate="${si}" title="Cümleyi çevir">🌐</span></span>`;
+  }).join(' ');
+
+  main.innerHTML = `
+    <div class="reader-wrap">
+      <div class="reader-pane">
+        <div class="reader-topbar">
+          <button class="back" id="back-btn">← Kütüphane</button>
+          <div class="reader-title">${escapeHtml(book.title)}</div>
+          <div class="reader-actions">
+            <button class="icon-btn" id="read-aloud-btn">🔊 Sayfayı Seslendir</button>
+          </div>
+        </div>
+        <div class="page-text" id="page-text">${sentenceHtml}</div>
+        <div class="pager">
+          <button id="prev-page" ${book.currentPage===0?'disabled':''}>← Önceki</button>
+          <span>Sayfa ${book.currentPage+1} / ${book.pages.length}</span>
+          <button id="next-page" ${book.currentPage>=book.pages.length-1?'disabled':''}>Sonraki →</button>
+        </div>
+      </div>
+      <div class="word-panel ${state.panelOpen?'open':''}" id="word-panel">
+        ${renderPanelContent()}
+      </div>
+    </div>
+  `;
+
+  document.getElementById('back-btn').addEventListener('click', ()=>{ state.currentBook = null; render(); });
+  document.getElementById('prev-page').addEventListener('click', ()=>{ book.currentPage--; state.panelOpen=false; render(); });
+  document.getElementById('next-page').addEventListener('click', ()=>{ book.currentPage++; state.panelOpen=false; render(); });
+  document.getElementById('read-aloud-btn').addEventListener('click', ()=>{
+    speak(pageText);
+  });
+  main.querySelectorAll('.word').forEach(w=>{
+    w.addEventListener('click', ()=>{
+      main.querySelectorAll('.word').forEach(x=>x.classList.remove('active-word'));
+      w.classList.add('active-word');
+      const word = w.dataset.word;
+      const sIdx = w.dataset.sentence;
+      const sentence = sentences[sIdx].trim();
+      openWordPanel(word, sentence);
+    });
+  });
+  main.querySelectorAll('.translate-flag').forEach(f=>{
+    f.addEventListener('click', ()=>translateSentenceInline(f, sentences[f.dataset.translate].trim()));
+  });
+  wirePanelButtons();
+}
+
+function speak(text, lang){
+  try{
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = lang || 'en-US';
+    u.rate = 0.95;
+    window.speechSynthesis.speak(u);
+  }catch(e){ console.error(e); }
+}
+
+async function translateSentenceInline(flagEl, sentenceText){
+  const sentSpan = flagEl.closest('.sentence');
+  if(sentSpan.querySelector('.sentence-translation')){
+    sentSpan.querySelector('.sentence-translation').remove();
+    return;
+  }
+  const div = document.createElement('span');
+  div.className = 'sentence-translation';
+  div.textContent = 'Çevriliyor…';
+  sentSpan.appendChild(document.createElement('br'));
+  sentSpan.appendChild(div);
+  try{
+    const raw = await callClaude(
+      "Sen bir İngilizce-Türkçe çeviri asistanısın. Sana verilen İngilizce cümleyi doğal, akıcı Türkçeye çevir. SADECE şu JSON formatında yanıt ver, başka hiçbir şey yazma: {\"translation\":\"...\"}",
+      sentenceText
+    );
+    const parsed = parseJsonSafe(raw);
+    div.textContent = parsed && parsed.translation ? parsed.translation : 'Çeviri alınamadı.';
+  }catch(e){
+    div.textContent = 'Çeviri alınamadı, tekrar dene.';
+  }
+}
+
+function renderPanelContent(){
+  const d = state.panelData;
+  if(!d) return `<div class="panel-empty">Anlamını görmek istediğin bir kelimeye tıkla.</div>`;
+  if(d.loading){
+    return `<button class="panel-close" id="panel-close">✕</button><div class="slip-loading">Anlam aranıyor…</div>`;
+  }
+  const isSaved = state.vocab.some(v=>v.word.toLowerCase()===d.word.toLowerCase());
+  return `
+    <button class="panel-close" id="panel-close">✕</button>
+    <div class="card-slip">
+      <div class="slip-pos">${escapeHtml(d.pos||'')}</div>
+      <div class="slip-word">${escapeHtml(d.word)}</div>
+      <div class="slip-meaning">${escapeHtml(d.meaning||'')}</div>
+      <div class="slip-example">"${escapeHtml(d.example||'')}"</div>
+      <div class="slip-actions">
+        <button class="slip-btn pronounce" id="pronounce-btn">🔊 Telaffuz</button>
+        <button class="slip-btn ${isSaved?'saved':'save'}" id="save-btn" ${isSaved?'disabled':''}>${isSaved?'✓ Eklendi':'+ Listeye Ekle'}</button>
+      </div>
+    </div>
+  `;
+}
+
+function wirePanelButtons(){
+  const panel = document.getElementById('word-panel');
+  if(!panel) return;
+  const closeBtn = document.getElementById('panel-close');
+  if(closeBtn) closeBtn.addEventListener('click', ()=>{ state.panelOpen=false; render(); });
+  const pron = document.getElementById('pronounce-btn');
+  if(pron) pron.addEventListener('click', ()=> speak(state.panelData.word, 'en-US'));
+  const save = document.getElementById('save-btn');
+  if(save) save.addEventListener('click', async ()=>{
+    const d = state.panelData;
+    state.vocab.push({
+      id: 'v_'+Date.now(),
+      word: d.word,
+      meaning: d.meaning,
+      pos: d.pos,
+      example: d.example,
+      familiarity: 0,
+      addedAt: Date.now()
+    });
+    await storeSet('vocab-list', state.vocab);
+    render();
+  });
+}
+
+async function openWordPanel(word, sentence){
+  state.panelOpen = true;
+  const cacheKey = word.toLowerCase()+'|'+sentence;
+  if(state.sessionWordCache[cacheKey]){
+    state.panelData = {word, sentence, loading:false, ...state.sessionWordCache[cacheKey]};
+    render();
+    return;
+  }
+  state.panelData = {word, sentence, loading:true};
+  render();
+  try{
+    const raw = await callClaude(
+      "Sen İngilizce öğrenen Türk öğrenciler için bir sözlük asistanısın. Sana bir İngilizce kelime ve geçtiği cümle verilecek. Kelimenin bu cümledeki bağlamdaki anlamını Türkçe olarak ver. SADECE şu JSON formatında yanıt ver, başka hiçbir açıklama ekleme: {\"pos\":\"kelime türü (isim/fiil/sıfat vb, Türkçe)\",\"meaning\":\"Türkçe anlamı (kısa)\",\"example\":\"kelimenin geçtiği orijinal cümle, aynen\"}",
+      `Kelime: "${word}"\nCümle: "${sentence}"`
+    );
+    const parsed = parseJsonSafe(raw);
+    const result = parsed ? {pos:parsed.pos, meaning:parsed.meaning, example:parsed.example||sentence}
+                           : {pos:'', meaning:'Anlam alınamadı.', example:sentence};
+    state.sessionWordCache[cacheKey] = result;
+    state.panelData = {word, sentence, loading:false, ...result};
+  }catch(e){
+    state.panelData = {word, sentence, loading:false, pos:'', meaning:'Anlam alınamadı, tekrar dene.', example:sentence};
+  }
+  render();
+}
+
+/* ================= VOCAB / FLASHCARDS ================= */
+function renderVocab(){
+  const mode = state.vocabMode;
+  main.innerHTML = `
+    <div class="vocab-wrap">
+      <div class="vocab-head">
+        <h1>Kelimelerim</h1>
+        <div class="mode-switch" id="mode-switch">
+          <button data-mode="list" class="${mode==='list'?'active':''}">Liste</button>
+          <button data-mode="flash-en-tr" class="${mode==='flash-en-tr'?'active':''}">İngilizce → Türkçe</button>
+          <button data-mode="flash-tr-en" class="${mode==='flash-tr-en'?'active':''}">Türkçe → İngilizce</button>
+        </div>
+      </div>
+      <div id="vocab-body"></div>
+    </div>
+  `;
+  document.getElementById('mode-switch').addEventListener('click', (e)=>{
+    const btn = e.target.closest('button[data-mode]');
+    if(!btn) return;
+    state.vocabMode = btn.dataset.mode;
+    if(state.vocabMode !== 'list') startFlashSession(state.vocabMode);
+    render();
+  });
+  const body = document.getElementById('vocab-body');
+  if(mode==='list'){ renderVocabListBody(body); }
+  else { renderFlashBody(body); }
+}
+
+function renderVocabListBody(body){
+  if(state.vocab.length===0){
+    body.innerHTML = `<div class="empty-state"><div class="icon">🗂️</div><h3>Henüz kelime kaydetmedin</h3><p>Kitap okurken bilmediğin kelimelere tıklayıp listeye ekleyebilirsin.</p></div>`;
+    return;
+  }
+  const sorted = [...state.vocab].sort((a,b)=>b.addedAt-a.addedAt);
+  body.innerHTML = `
+    <table class="vocab-table">
+      <thead><tr><th>Kelime</th><th>Anlam</th><th>Tür</th><th>Bilinirlik</th><th></th></tr></thead>
+      <tbody>
+        ${sorted.map(v=>`
+          <tr data-id="${v.id}">
+            <td class="w">${escapeHtml(v.word)}</td>
+            <td>${escapeHtml(v.meaning||'')}</td>
+            <td>${escapeHtml(v.pos||'')}</td>
+            <td><div class="fam">${[0,1,2,3].map(i=>`<div class="fam-dot ${i<(v.familiarity||0)?'on':''}"></div>`).join('')}</div></td>
+            <td><button class="del-row" data-del="${v.id}">✕</button></td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+  body.querySelectorAll('[data-del]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      state.vocab = state.vocab.filter(v=>v.id!==btn.dataset.del);
+      await storeSet('vocab-list', state.vocab);
+      render();
+    });
+  });
+}
+
+function startFlashSession(mode){
+  if(state.vocab.length===0){ state.flashDeck=[]; return; }
+  const weighted = [];
+  state.vocab.forEach(v=>{
+    const weight = 4 - Math.min(v.familiarity||0, 3);
+    for(let i=0;i<weight;i++) weighted.push(v);
+  });
+  state.flashDeck = shuffle([...new Set(weighted)]);
+  state.flashIndex = 0;
+  state.flashFlipped = false;
+}
+function shuffle(arr){
+  const a = [...arr];
+  for(let i=a.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [a[i],a[j]]=[a[j],a[i]];
+  }
+  return a;
+}
+
+function renderFlashBody(body){
+  if(state.vocab.length===0){
+    body.innerHTML = `<div class="empty-state"><div class="icon">🗂️</div><h3>Kelime listesi boş</h3><p>Önce kitap okurken birkaç kelime kaydet.</p></div>`;
+    return;
+  }
+  if(state.flashIndex >= state.flashDeck.length){
+    body.innerHTML = `<div class="flash-done"><h3>Bu tur tamamlandı 🎉</h3><p>${state.flashDeck.length} kart tekrar edildi.</p></div>`;
+    setTimeout(()=>{}, 0);
+    const retryBtn = document.createElement('div');
+    body.innerHTML += `<div style="text-align:center;"><button class="icon-btn" id="restart-flash">Tekrar Başlat</button></div>`;
+    document.getElementById('restart-flash').addEventListener('click', ()=>{ startFlashSession(state.vocabMode); render(); });
+    return;
+  }
+  const card = state.flashDeck[state.flashIndex];
+  const isEnTr = state.vocabMode === 'flash-en-tr';
+  const front = isEnTr ? card.word : card.meaning;
+  const back = isEnTr ? card.meaning : card.word;
+
+  body.innerHTML = `
+    <div class="flash-stage">
+      <div class="flash-progress">${state.flashIndex+1} / ${state.flashDeck.length}</div>
+      <div class="flashcard" id="flashcard">
+        <div class="tag">${isEnTr?'İngilizce → Türkçe':'Türkçe → İngilizce'}</div>
+        <div class="front-text">${escapeHtml(front)}</div>
+        ${state.flashFlipped ? `<div class="back-text">${escapeHtml(back)}</div>` : `<div class="hint">Görmek için karta dokun</div>`}
+      </div>
+      ${state.flashFlipped ? `
+        <div class="flash-actions">
+          <button class="no" id="flash-no">Bilmiyorum</button>
+          <button class="yes" id="flash-yes">Biliyorum</button>
+        </div>` : ''}
+    </div>
+  `;
+  document.getElementById('flashcard').addEventListener('click', ()=>{
+    state.flashFlipped = !state.flashFlipped;
+    render();
+  });
+  const noBtn = document.getElementById('flash-no');
+  const yesBtn = document.getElementById('flash-yes');
+  if(noBtn) noBtn.addEventListener('click', async (e)=>{ e.stopPropagation(); await gradeCard(card, false); });
+  if(yesBtn) yesBtn.addEventListener('click', async (e)=>{ e.stopPropagation(); await gradeCard(card, true); });
+}
+
+async function gradeCard(card, known){
+  const v = state.vocab.find(x=>x.id===card.id);
+  if(v){
+    v.familiarity = known ? Math.min((v.familiarity||0)+1, 3) : 0;
+    await storeSet('vocab-list', state.vocab);
+  }
+  state.flashIndex++;
+  state.flashFlipped = false;
+  render();
+}
+
+init();
+</script>
+</body>
+</html>
